@@ -1,0 +1,11 @@
+[package]
+name = "RustTest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix = "0.13.5"
+actix-web = "4.9.0"
+tokio = { version = "1.40.0", features = ["full"] }
+sqlx = { version = "0.8", features = [ "runtime-tokio" ] }
+statig = { version = "0.3.0", features = ["async"] }
