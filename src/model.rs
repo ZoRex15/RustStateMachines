@@ -1,36 +1,36 @@
 use std::default;
 
+use schemars::JsonSchema;
 use statig::prelude::*;
 
+#[derive(serde::Deserialize, JsonSchema)]
 pub enum Event {
-    TurnOn {
-        power: LampPower
-    },
-    TurnOff {
-        power: LampPower
-    },
-    Switch {
-        power: LampPower
-    },
+    TurnOn,
+    TurnOff,
+    Switch,
 }
 
-enum LampState {
-    ON,
-}
+// pub struct Update {
+//     event: Event
+// }
 
-#[derive(Clone, Debug)]
-pub enum LampPower {
-    PRESENT {
-        voltage: u8
-    },
-    ABSENT,
-}
+// enum LampState {
+//     ON,
+// }
 
-impl Default for LampPower {
-    fn default() -> Self {
-        Self::ABSENT
-    }
-}
+// #[derive(Clone, Debug)]
+// pub enum LampPower {
+//     PRESENT {
+//         voltage: u8
+//     },
+//     ABSENT,
+// }
+
+// impl Default for LampPower {
+//     fn default() -> Self {
+//         Self::ABSENT
+//     }
+// }
 
 #[derive(Default, Clone)]
 pub struct Lamp {
@@ -42,46 +42,44 @@ pub struct Lamp {
 #[state_machine(initial = "State::off()", state(derive(Debug)), on_transition = "Self::on_transition",)]
 impl Lamp {
     #[state]
-    pub async fn on(&mut self, event: &Event) -> Response<State> {
+    pub fn on(&mut self, event: &Event) -> Response<State> {
         use Event::*;
         match event {
-            TurnOff {power: LampPower::ABSENT} => {
+            TurnOff => {
                 self.led = false;
                 Transition(State::off())
             }
-            Switch {power: LampPower::PRESENT {voltage: (200..=240)}}  => {
+            Switch => {
                 self.led = false;
                 Transition(State::off())
             }
-            TurnOn {power: LampPower::PRESENT {voltage: (200..=240)}} => Handled,
-            TurnOn {power: LampPower::ABSENT}  
-            | Switch {power: LampPower::ABSENT} => Transition(State::off()),
+            TurnOn => Handled,
         }
     }
 
     #[state]
-    pub async fn off(&mut self, event: &Event) -> Response<State> {
+    pub fn off(&mut self, event: &Event) -> Response<State> {
         use Event::*;
 
         match event {
-            (TurnOn, LampPower::PRESENT)  => {
+            TurnOn  => {
+                self.led = true;
+                println!("");
+                Transition(State::on())
+            }
+            Switch  => {
                 self.led = true;
                 Transition(State::on())
             }
-            (Switch, LampPower::PRESENT)  => {
-                self.led = true;
-                Transition(State::on())
-            }
-            (TurnOff, _) => Handled,
-            (TurnOn | Switch, LampPower::ABSENT) => Handled,
+            TurnOff => Handled,
         }
     }
 
     fn on_transition(&mut self, source: &State, target: &State) {
         println!("transitioned from `{:?}` to `{:?}`", source, target);
     }
-
 }
+
 
 #[cfg(test)]
 mod test {
@@ -90,27 +88,27 @@ mod test {
     #[tokio::test]
     async fn on_3() {
         let mut led = Lamp::default().state_machine();
-        led.handle(&Event::TurnOn).await;
-        led.handle(&Event::TurnOn).await;
-        led.handle(&Event::TurnOn).await;
+        led.handle(&Event::TurnOn);
+        led.handle(&Event::TurnOn);
+        led.handle(&Event::TurnOn);
         assert_eq!(led.led, true); 
     }
 
     #[tokio::test]
     async fn off_3() {
         let mut led = Lamp::default().state_machine();
-        led.handle(&Event::TurnOff).await;
-        led.handle(&Event::TurnOff).await;
-        led.handle(&Event::TurnOff).await;
-        assert_eq!(led.led, true); 
+        led.handle(&Event::TurnOff);
+        led.handle(&Event::TurnOff);
+        led.handle(&Event::TurnOff);
+        assert_eq!(led.led, false); 
     }
 
     #[tokio::test]
     async fn switch_3() {
         let mut led = Lamp::default().state_machine();
-        led.handle(&Event::Switch).await;
-        led.handle(&Event::Switch).await;
-        led.handle(&Event::Switch).await;
+        led.handle(&Event::Switch);
+        led.handle(&Event::Switch);
+        led.handle(&Event::Switch);
         assert_eq!(led.led, true); 
     }
 }
